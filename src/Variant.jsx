@@ -9,10 +9,6 @@ export default class Variant extends Component {
   static displayName = "Pushtell.Variant";
 
   render() {
-    if (React.isValidElement(this.props.children)) {
-      return this.props.children;
-    } else {
-      return <React.Fragment>{this.props.children}</React.Fragment>;
-    }
+    return this.props.children;
   }
 };
