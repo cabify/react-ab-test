@@ -12,7 +12,7 @@ export default class Variant extends Component {
     if (React.isValidElement(this.props.children)) {
       return this.props.children;
     } else {
-      return <React.Fragment>{this.props.children}</React.Fragment>;
+      return <div>{this.props.children}</div>;
     }
   }
 };

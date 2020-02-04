@@ -8,10 +8,12 @@ exports[`Variant should render arrays of components 1`] = `
   <Pushtell.Variant
     name="A"
   >
-    <div
-      id="variant-a"
-    />
-    <div />
+    <div>
+      <div
+        id="variant-a"
+      />
+      <div />
+    </div>
   </Pushtell.Variant>
 </CoreExperiment>
 `;
