@@ -9,6 +9,10 @@ export default class Variant extends Component {
   static displayName = "Pushtell.Variant";
 
   render() {
-    return this.props.children;
+    if (React.isValidElement(this.props.children)) {
+      return this.props.children;
+    } else {
+      return <div>{this.props.children}</div>;
+    }
   }
 };
