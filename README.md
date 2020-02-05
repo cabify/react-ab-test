@@ -40,6 +40,7 @@ Please [★ on GitHub](https://github.com/marvelapp/react-ab-test)!
   - [Standalone Component](#standalone-component)
   - [Coordinate Multiple Components](#coordinate-multiple-components)
   - [Weighting Variants](#weighting-variants)
+  - [Force variant calculation before rendering experiment](#force-variant-calculation-before-rendering-experiment)
   - [Debugging](#debugging)
   - [Server Rendering](#server-rendering)
     - [Example](#example)
@@ -57,10 +58,12 @@ Please [★ on GitHub](https://github.com/marvelapp/react-ab-test)!
     - [`emitter.defineVariants(experimentName, variantNames [, variantWeights])`](#emitterdefinevariantsexperimentname-variantnames--variantweights)
     - [`emitter.setActiveVariant(experimentName, variantName)`](#emittersetactivevariantexperimentname-variantname)
     - [`emitter.getActiveVariant(experimentName)`](#emittergetactivevariantexperimentname)
+    - [`emitter.calculateActiveVariant(experimentName [, userIdentifier, defaultVariantName])`](#emittercalculateactivevariantexperimentname--useridentifier-defaultvariantname)
     - [`emitter.getSortedVariants(experimentName)`](#emittergetsortedvariantsexperimentname)
   - [`Subscription`](#subscription)
     - [`subscription.remove()`](#subscriptionremove)
   - [`experimentDebugger`](#experimentdebugger)
+    - [`experimentDebugger.setDebuggerAvailable(isAvailable)`](#experimentdebuggersetdebuggeravailableisavailable)
     - [`experimentDebugger.enable()`](#experimentdebuggerenable)
     - [`experimentDebugger.disable()`](#experimentdebuggerdisable)
   - [`mixpanelHelper`](#mixpanelhelper)
@@ -82,7 +85,7 @@ Please [★ on GitHub](https://github.com/marvelapp/react-ab-test)!
 `react-ab-test` is compatible with React `>=0.14.x`
 
 ```bash
-yarn install @marvelapp/react-ab-test
+yarn add @marvelapp/react-ab-test
 ```
 
 ## Usage
@@ -91,18 +94,50 @@ yarn install @marvelapp/react-ab-test
 
 Try it [on JSFiddle](https://jsfiddle.net/pushtell/m14qvy7r/)
 
+
+Using useExperiment Hook
+
+```js
+import React from 'react';
+import { useExperiment, emitter } from '@marvelapp/react-ab-test';
+
+// Hook usage pattern requires registration of experiments
+emitter.defineVariants("My Example", ["A", "B"]);
+
+const App = () => {
+  const { selectVariant, emitWin } = useExperiment("My Example");
+  const variant = selectVariant({
+    A: <div>Section A</div>,
+    B: <div>Section B</div>
+  });
+
+  return (
+    <div>
+      {variant}
+      <button onClick={emitWin}>CTA</button>
+    </div>
+  );
+};
+```
+
+
+Using Experiment Component
+
 ```js
 import React from 'react';
 import { Experiment, Variant, emitter } from '@marvelapp/react-ab-test';
 
 class App extends Component {
+  experimentRef = React.createRef();
+
   onButtonClick(e) {
-    this.refs.experiment.win();
+    this.experimentRef.current.win();
   }
+
   render() {
     return (
       <div>
-        <Experiment ref="experiment" name="My Example">
+        <Experiment ref={this.experimentRef} name="My Example">
           <Variant name="A">
             <div>Section A</div>
           </Variant>
@@ -121,7 +156,7 @@ emitter.addPlayListener(function(experimentName, variantName) {
   console.log(`Displaying experiment ${experimentName} variant ${variantName}`);
 });
 
-// Called when a 'win' is emitted, in this case by this.refs.experiment.win()
+// Called when a 'win' is emitted, in this case by this.experimentRef.current.win()
 emitter.addWinListener(function(experimentName, variantName) {
   console.log(
     `Variant ${variantName} of experiment ${experimentName} was clicked`
@@ -193,7 +228,7 @@ emitter.addPlayListener(function(experimentName, variantName) {
   console.log(`Displaying experiment ${experimentName} variant ${variantName}`);
 });
 
-// Called when a 'win' is emitted, in this case by this.refs.experiment.win()
+// Called when a 'win' is emitted, in this case by emitter.emitWin('My Example')
 emitter.addWinListener(function(experimentName, variantName) {
   console.log(
     `Variant ${variantName} of experiment ${experimentName} was clicked`
@@ -217,7 +252,7 @@ emitter.defineVariants('My Example', ['A', 'B', 'C'], [10, 40, 40]);
 const App = () => {
   return (
     <div>
-      <Experiment ref="experiment" name="My Example">
+      <Experiment name="My Example">
         <Variant name="A">
           <div>Section A</div>
         </Variant>
@@ -231,6 +266,23 @@ const App = () => {
     </div>
   );
 }
+```
+
+### Force variant calculation before rendering experiment
+There are some scenarios where you may want the active variant of an experiment to be calculated before the experiment is rendered.
+To do so, use [emitter.calculateActiveVariant()](#emittercalculateactivevariantexperimentname--useridentifier-defaultvariantname). Note that this method must
+be called after [emitter.defineVariants()](#emitterdefinevariantsexperimentname-variantnames--variantweights)
+
+```js
+import { emitter } from '@marvelapp/react-ab-test';
+
+// Define variants in advance
+emitter.defineVariants('My Example', ['A', 'B', 'C']);
+emitter.calculateActiveVariant('My Example', 'userId');
+
+// Active variant will be defined even if the experiment is not rendered
+const activeVariant = emitter.getActiveVariant('My Example');
+
 ```
 
 ### Debugging
@@ -252,7 +304,7 @@ experimentDebugger.enable();
 const App = () => {
   return (
     <div>
-      <Experiment ref="experiment" name="My Example">
+      <Experiment name="My Example">
         <Variant name="A">
           <div>Section A</div>
         </Variant>
@@ -288,7 +340,6 @@ module.exports = React.createClass({
     return (
       <div>
         <Experiment
-          ref="experiment"
           name="My Example"
           userIdentifier={this.props.userIdentifier}
         >
@@ -315,7 +366,7 @@ var session = require('express-session');
 var React = require('react');
 var ReactDOMServer = require('react-dom/server');
 var Component = require('./Component.jsx');
-var abEmitter = require('react-ab-test/lib/emitter');
+var abEmitter = require('@marvelapp/react-ab-test/lib/emitter');
 
 var app = express();
 
@@ -550,6 +601,26 @@ Returns the variant name currently displayed by the experiment.
     * **Type:** `string`
     * **Example:** `"My Example"`
 
+#### `emitter.calculateActiveVariant(experimentName [, userIdentifier, defaultVariantName])`
+
+Force calculation of active variant, even if the experiment is not displayed yet.
+Note: This method must be called after `emitter.defineVariants`
+
+* **Return Type:** `string`
+* **Parameters:**
+  * `experimentName` - Name of the experiment.
+    * **Required**
+    * **Type:** `string`
+    * **Example:** `"My Example"`
+  * `userIdentifier` - Distinct user identifier. When defined, this value is hashed to choose a variant if `defaultVariantName` or a stored value is not present. Useful for [server side rendering](#server-rendering).
+    * **Optional**
+    * **Type:** `string`
+    * **Example:** `"7cf61a4521f24507936a8977e1eee2d4"`
+  * `defaultVariantName` - Name of the default variant. When defined, this value is used to choose a variant if a stored value is not present. This property may be useful for [server side rendering](#server-rendering) but is otherwise not recommended.
+    * **Optional**
+    * **Type:** `string`
+    * **Example:** `"A"`
+
 #### `emitter.getSortedVariants(experimentName)`
 
 Returns a sorted array of variant names associated with the experiment.
@@ -575,9 +646,20 @@ Removes the listener subscription and prevents future callbacks.
 
 Debugging tool. Attaches a fixed-position panel to the bottom of the `<body>` element that displays mounted experiments and enables the user to change active variants in real-time.
 
-The debugger is wrapped in a conditional `if(process.env.NODE_ENV === "production") {...}` and will not display on production builds using [envify](https://github.com/hughsk/envify).
+The debugger is wrapped in a conditional `if(process.env.NODE_ENV === "production") {...}` and will not display on production builds using [envify](https://github.com/hughsk/envify). This can be overriden by `setDebuggerAvailable`
 
 <img src="https://cdn.rawgit.com/pushtell/react-ab-test/master/documentation-images/debugger-animated-2.gif" width="325" height="325" />
+
+#### `experimentDebugger.setDebuggerAvailable(isAvailable)`
+Overrides `process.env.NODE_ENV` check, so it can be decided if the debugger is available
+or not at runtime. This allow, for instance, to enable the debugger in a testing environment but not in production.
+Note that you require to explicitly call to `.enable` even if you forced this to be truthy.
+
+* **Return Type:** No return value
+* **Parameters:**
+  * `isAvailable` - Tells whether the debugger is available or not
+    * **Required**
+    * **Type:** `boolean`
 
 #### `experimentDebugger.enable()`
 
@@ -611,8 +693,11 @@ import { Experiment, Variant, mixpanelHelper } from '@marvelapp/react-ab-test';
 mixpanelHelper.enable();
 
 class App extends React.Component {
+
+  experimentRef = React.createRef();
+
   onButtonClick(e) {
-    emitter.emitWin('My Example');
+    this.experimentRef.current.win();
     // mixpanelHelper sends the 'Experiment Win' event, equivalent to:
     // mixpanel.track('Experiment Win', {Experiment: "My Example", Variant: "A"})
   }
@@ -623,7 +708,7 @@ class App extends React.Component {
   render() {
     return (
       <div>
-        <Experiment ref="experiment" name="My Example">
+        <Experiment ref={this.experimentRef} name="My Example">
           <Variant name="A">
             <div>Section A</div>
           </Variant>
@@ -670,8 +755,10 @@ import { Experiment, Variant, segmentHelper } from '@marvelapp/react-ab-test';
 segmentHelper.enable();
 
 class App extends React.Component {
+  experimentRef = React.createRef();
+
   onButtonClick(e) {
-    emitter.emitWin('My Example');
+    this.experimentRef.current.win();
     // segmentHelper sends the 'Experiment Won' event, equivalent to:
     // segment.track('Experiment Won', {experimentName: "My Example", variationName: "A"})
   }
@@ -682,7 +769,7 @@ class App extends React.Component {
   render() {
     return (
       <div>
-        <Experiment ref="experiment" name="My Example">
+        <Experiment ref={this.experimentRef} name="My Example">
           <Variant name="A">
             <div>Section A</div>
           </Variant>

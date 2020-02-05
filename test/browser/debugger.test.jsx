@@ -1,21 +1,19 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
 import UUID from 'uuid/v4';
 import { mount } from 'enzyme';
 
-import Experiment from '../../src/CoreExperiment.jsx';
+import CoreExperiment from '../../src/CoreExperiment.jsx';
 import Variant from '../../src/Variant.jsx';
 import experimentDebugger from '../../src/debugger.jsx';
-import emitter from '../../src/emitter.jsx';
 
 describe('Debugger', () => {
   it('should enable and disable.', () => {
     const wrapper = mount(
-      <Experiment name={UUID()} value="A">
+      <CoreExperiment name={UUID()} defaultVariantName="A">
         <Variant name="A">
           <div id="variant-a" />
         </Variant>
-      </Experiment>
+      </CoreExperiment>
     );
     const getDebugger = () => document.getElementById('pushtell-debugger');
 
@@ -37,14 +35,14 @@ describe('Debugger', () => {
 
   it("should change an experiment's value.", () => {
     const wrapper = mount(
-      <Experiment name={UUID()} value="A">
+      <CoreExperiment name={UUID()} defaultVariantName="A">
         <Variant name="A">
           <div id="variant-a" />
         </Variant>
         <Variant name="B">
           <div id="variant-a" />
         </Variant>
-      </Experiment>
+      </CoreExperiment>
     );
 
     experimentDebugger.enable();
@@ -67,6 +65,19 @@ describe('Debugger', () => {
     expect(wrapper.find('#variant-b').exists());
 
     experimentDebugger.disable();
+  });
+
+  describe('when is not available', () => {
+    beforeEach(() => {
+      experimentDebugger.setDebuggerAvailable(false);
+      experimentDebugger.enable();
+    });
+    it('should do nothing when enabling it', () => {
+      expect(hasCSSSelector('#pushtell-debugger')).toBe(false);
+    });
+    afterEach(() => {
+      experimentDebugger.setDebuggerAvailable(true);
+    });
   });
 });
 
